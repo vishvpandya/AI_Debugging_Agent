@@ -1,39 +1,71 @@
-import streamlit as st
-from dotenv import load_dotenv
-import os
-from groq import Groq
-import requests
+# import streamlit as st
+# from dotenv import load_dotenv
+# import os
+# from groq import Groq
+# import requests
 
-# Load env
-load_dotenv()
+# # Load env
+# load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Memory
-if "history" not in st.session_state:
-    st.session_state.history = []
+# # Memory
+# if "history" not in st.session_state:
+#     st.session_state.history = []
 
-# -------------------------------
-# Error classifier
-# -------------------------------
-def classify_error(error_text):
-    if "TypeError" in error_text:
-        return "TypeError"
-    elif "IndexError" in error_text:
-        return "IndexError"
-    elif "KeyError" in error_text:
-        return "KeyError"
-    elif "ValueError" in error_text:
-        return "ValueError"
-    else:
-        return "GeneralError"
+# # -------------------------------
+# # Error classifier
+# # -------------------------------
+# def classify_error(error_text):
+#     if "TypeError" in error_text:
+#         return "TypeError"
+#     elif "IndexError" in error_text:
+#         return "IndexError"
+#     elif "KeyError" in error_text:
+#         return "KeyError"
+#     elif "ValueError" in error_text:
+#         return "ValueError"
+#     else:
+#         return "GeneralError"
 
-# -------------------------------
-# Real Web Search Tool
-# -------------------------------
+# # -------------------------------
+# # Real Web Search Tool
+# # -------------------------------
+# # def web_search_tool(query):
+# #     try:
+# #         headers = {"User-Agent": "Mozilla/5.0"}
+
+# #         url = "https://en.wikipedia.org/w/api.php"
+# #         params = {
+# #             "action": "query",
+# #             "list": "search",
+# #             "srsearch": query,
+# #             "format": "json"
+# #         }
+
+# #         res = requests.get(url, params=params, headers=headers)
+# #         data = res.json()
+
+# #         if data["query"]["search"]:
+# #             title = data["query"]["search"][0]["title"]
+
+# #             summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+# #             summary_res = requests.get(summary_url, headers=headers)
+# #             summary_data = summary_res.json()
+
+# #             return summary_data.get("extract", "No result found.")
+        
+# #         return "No useful result found."
+
+# #     except Exception as e:
+# #         return f"Error: {str(e)}"
+
 # def web_search_tool(query):
 #     try:
 #         headers = {"User-Agent": "Mozilla/5.0"}
+
+#         # 🔥 Make query VERY specific
+#         query = f"{query} Python programming advantages explanation"
 
 #         url = "https://en.wikipedia.org/w/api.php"
 #         params = {
@@ -46,64 +78,185 @@ def classify_error(error_text):
 #         res = requests.get(url, params=params, headers=headers)
 #         data = res.json()
 
-#         if data["query"]["search"]:
-#             title = data["query"]["search"][0]["title"]
+#         if not data.get("query"):
+#             return "No result found."
+
+#         # 🔥 Check top 5 results
+#         for item in data["query"]["search"][:5]:
+#             title = item["title"]
 
 #             summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 #             summary_res = requests.get(summary_url, headers=headers)
-#             summary_data = summary_res.json()
 
-#             return summary_data.get("extract", "No result found.")
-        
-#         return "No useful result found."
+#             if summary_res.status_code != 200:
+#                 continue
+
+#             summary = summary_res.json().get("extract", "")
+
+#             # 🔥 FILTER GOOD CONTENT
+#             if "python" in summary.lower():
+#                 return summary
+
+#         return "No relevant Python-related result found."
 
 #     except Exception as e:
 #         return f"Error: {str(e)}"
 
-def web_search_tool(query):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
+# # -------------------------------
+# # Agent
+# # -------------------------------
+# def debugging_agent(user_input):
 
-        # 🔥 Make query VERY specific
-        query = f"{query} Python programming advantages explanation"
+#     error_type = classify_error(user_input)
 
-        url = "https://en.wikipedia.org/w/api.php"
-        params = {
-            "action": "query",
-            "list": "search",
-            "srsearch": query,
-            "format": "json"
-        }
+#     use_tool = "why" in user_input.lower() or "how" in user_input.lower()
 
-        res = requests.get(url, params=params, headers=headers)
-        data = res.json()
+#     tool_result = ""
+#     tool_used = False
 
-        if not data.get("query"):
-            return "No result found."
+#     if use_tool:
+#         tool_used = True
+#         search_query = f"{error_type} Python error explanation"
+#         tool_result = web_search_tool(search_query)
 
-        # 🔥 Check top 5 results
-        for item in data["query"]["search"][:5]:
-            title = item["title"]
+#     system_prompt = f"""
+#     You are an AI debugging agent.
 
-            summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
-            summary_res = requests.get(summary_url, headers=headers)
+#     Error Type: {error_type}
 
-            if summary_res.status_code != 200:
-                continue
+#     Provide:
+#     🔍 Explanation:
+#     🛠 Fix:
+#     💻 Improved Code:
+#     """
 
-            summary = summary_res.json().get("extract", "")
+#     messages = [{"role": "system", "content": system_prompt}]
+#     messages += st.session_state.history
+#     messages.append({"role": "user", "content": user_input})
 
-            # 🔥 FILTER GOOD CONTENT
-            if "python" in summary.lower():
-                return summary
+#     if tool_used:
+#         messages.append({"role": "system", "content": f"External info: {tool_result}"})
 
-        return "No relevant Python-related result found."
+#     response = client.chat.completions.create(
+#         model="llama-3.3-70b-versatile",
+#         messages=messages
+#     )
 
-    except Exception as e:
-        return f"Error: {str(e)}"
+#     reply = response.choices[0].message.content
+
+#     # Save memory
+#     st.session_state.history.append({"role": "user", "content": user_input})
+#     st.session_state.history.append({"role": "assistant", "content": reply})
+
+#     return reply, tool_result if tool_used else None
+
+# # -------------------------------
+# # UI
+# # -------------------------------
+# st.title("🤖 AI Debugging Agent")
+
+# user_input = st.text_input("Enter your error or question:")
+
+# if st.button("Debug"):
+#     if user_input:
+#         reply, tool_data = debugging_agent(user_input)
+
+#         if tool_data:
+#             st.subheader("🌐 Web Search Used")
+#             st.write(tool_data)
+
+#         st.subheader("💡 AI Response")
+#         st.write(reply)
+
+
+
+
+
+
+
+
+import streamlit as st
+import os
+from groq import Groq
+from serpapi import GoogleSearch
+from dotenv import load_dotenv
 
 # -------------------------------
-# Agent
+# 🔐 LOAD ENV
+# -------------------------------
+load_dotenv()
+
+# -------------------------------
+# 🔑 GET API KEYS (SMART WAY)
+# -------------------------------
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+SERP_API_KEY = os.getenv("SERPAPI_KEY") or st.secrets.get("SERPAPI_KEY")
+
+# Safety check
+if not GROQ_API_KEY:
+    st.error("❌ GROQ API key not found!")
+    st.stop()
+
+if not SERP_API_KEY:
+    st.warning("⚠️ SERP API key not found, web search may not work.")
+
+# Initialize client
+groq_client = Groq(api_key=GROQ_API_KEY)
+
+# -------------------------------
+# 🧠 MEMORY
+# -------------------------------
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+# -------------------------------
+# 🔧 ERROR CLASSIFIER
+# -------------------------------
+def classify_error(error_text):
+    if "TypeError" in error_text:
+        return "TypeError"
+    elif "IndexError" in error_text:
+        return "IndexError"
+    elif "KeyError" in error_text:
+        return "KeyError"
+    elif "ValueError" in error_text:
+        return "ValueError"
+    elif "ZeroDivisionError" in error_text:
+        return "ZeroDivisionError"
+    else:
+        return "GeneralError"
+
+# -------------------------------
+# 🌐 REAL WEB SEARCH (SERPAPI)
+# -------------------------------
+def web_search_tool(query):
+    try:
+        params = {
+            "q": query,
+            "api_key": SERP_API_KEY
+        }
+
+        search = GoogleSearch(params)
+        results = search.get_dict()
+
+        if "organic_results" in results:
+            output = []
+
+            for r in results["organic_results"][:3]:
+                title = r.get("title", "")
+                snippet = r.get("snippet", "")
+                link = r.get("link", "")
+
+                output.append(f"🔗 {title}\n{snippet}\n{link}")
+
+            return "\n\n".join(output)
+
+        return "No search results found."
+
+    except Exception as e:
+        return f"Search error: {str(e)}"
+# -------------------------------
+# 🤖 AGENT
 # -------------------------------
 def debugging_agent(user_input):
 
@@ -116,7 +269,7 @@ def debugging_agent(user_input):
 
     if use_tool:
         tool_used = True
-        search_query = f"{error_type} Python error explanation"
+        search_query = f"{error_type} Python error explanation and fix"
         tool_result = web_search_tool(search_query)
 
     system_prompt = f"""
@@ -137,7 +290,7 @@ def debugging_agent(user_input):
     if tool_used:
         messages.append({"role": "system", "content": f"External info: {tool_result}"})
 
-    response = client.chat.completions.create(
+    response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=messages
     )
@@ -151,9 +304,12 @@ def debugging_agent(user_input):
     return reply, tool_result if tool_used else None
 
 # -------------------------------
-# UI
+# 🎨 UI
 # -------------------------------
+st.set_page_config(page_title="AI Debugging Agent", page_icon="🤖")
+
 st.title("🤖 AI Debugging Agent")
+st.write("Fix your coding errors with AI + real web search 🚀")
 
 user_input = st.text_input("Enter your error or question:")
 
