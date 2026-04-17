@@ -62,14 +62,12 @@ def classify_error(error_text):
 
 def web_search_tool(query):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
 
-        # 🔥 Force Python context
-        query = query + " Python programming"
+        # 🔥 Make query VERY specific
+        query = f"{query} Python programming advantages explanation"
 
-        search_url = "https://en.wikipedia.org/w/api.php"
+        url = "https://en.wikipedia.org/w/api.php"
         params = {
             "action": "query",
             "list": "search",
@@ -77,15 +75,15 @@ def web_search_tool(query):
             "format": "json"
         }
 
-        response = requests.get(search_url, params=params, headers=headers)
-        data = response.json()
+        res = requests.get(url, params=params, headers=headers)
+        data = res.json()
 
-        if not data.get("query") or not data["query"].get("search"):
-            return "No relevant result found."
+        if not data.get("query"):
+            return "No result found."
 
-        # 🔥 Try multiple results (VERY IMPORTANT)
-        for result in data["query"]["search"][:5]:
-            title = result["title"]
+        # 🔥 Check top 5 results
+        for item in data["query"]["search"][:5]:
+            title = item["title"]
 
             summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
             summary_res = requests.get(summary_url, headers=headers)
@@ -93,17 +91,16 @@ def web_search_tool(query):
             if summary_res.status_code != 200:
                 continue
 
-            summary_data = summary_res.json()
-            extract = summary_data.get("extract", "")
+            summary = summary_res.json().get("extract", "")
 
-            # 🔥 FILTER OUT WRONG CONTENT
-            if "programming" in extract.lower() or "python" in extract.lower():
-                return extract
+            # 🔥 FILTER GOOD CONTENT
+            if "python" in summary.lower():
+                return summary
 
         return "No relevant Python-related result found."
 
     except Exception as e:
-        return f"Web search error: {str(e)}"
+        return f"Error: {str(e)}"
 
 # -------------------------------
 # Agent
